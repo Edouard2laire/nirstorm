@@ -58,6 +58,11 @@ else
         assert(response_duration > 20);
         knots = [0:3:12 19 response_duration];
         %knots = [0:4:response_duration];
+    elseif strcmp(model.options.knots_type, 'denser_during_1st_half_bis')
+        assert(response_duration > 20);
+        knots_dt = model.options.regular_knots_dt;
+        knots = [0:3:12 16:knots_dt:response_duration;];
+        %knots = [0:4:response_duration];
     else
         throw(MException('NIRSDyna:ScenarioNotImplemented'));
     end

@@ -79,7 +79,6 @@ function sProcess = GetDescription() %#ok<DEFNU>
     
     sProcess.options.save_full_fitted_model.Comment = 'Save full fitted model';
     sProcess.options.save_full_fitted_model.Type    = 'checkbox';
-    sProcess.options.save_full_fitted_model.Hidden  = 1;
     sProcess.options.save_full_fitted_model.Value   =  0;
     
     sProcess.options.save_fit.Comment = 'Fit';
@@ -88,7 +87,6 @@ function sProcess = GetDescription() %#ok<DEFNU>
     
     sProcess.options.output_fig_dir.Comment = 'Figure output directory: ';
     sProcess.options.output_fig_dir.Type    = 'text';
-    sProcess.options.output_fig_dir.Hidden  = 1;
     sProcess.options.output_fig_dir.Value   = '';
 end
 
@@ -271,39 +269,34 @@ function OutputFile = Run(sProcess, sInputs) %#ok<DEFNU>
         output_comment = [output_prefix '- effects'];
         extra_output = struct();
         extra_output.DisplayUnits = DataMat.DisplayUnits; %TODO: check scaling
-        
-        warning('Effects output not implemented');
-        
-        if 0
-            if surface_data
-                [sStudy, ResultFile] = nst_bst_add_surf_data(fmodel.observables.response_block_pm', response_time_axis, [], 'surf_spree_res', output_comment, ...
-                                                             [], sStudy, 'Spree', DataMat.SurfaceFile, 0, extra_output);
-                OutputFile = ResultFile;
-            else     
-                nb_channels = length(ChannelMat.Channel);
 
-                effects = nan(1, nb_channels);
-                all_effects = [fmodel.observables.response_max_pm ; fmodel.observables.response_min_pm];
-                all_effects_std = [fmodel.observables.response_max_pstd ; fmodel.observables.response_min_pstd];
-                [vv, ii] = max(abs(all_effects));
-                sign = ii;
-                sign(sign==2) = -1;
-                effects(:, nirs_ichans) = vv .* sign;
+        if surface_data
+            [sStudy, ResultFile] = nst_bst_add_surf_data(fmodel.observables.response_block_pm', response_time_axis, [], 'surf_spree_res', output_comment, ...
+                                                         [], sStudy, 'Spree', DataMat.SurfaceFile, 0, extra_output);
+            OutputFile = ResultFile;
+        else     
+            nb_channels = length(ChannelMat.Channel);
 
-                effects_std = nan(1, nb_channels);
-                for ichan=1:nb_channels
-                    effects_std(:, ichan) = all_effects_std(ii(ichan), ichan);
-                end
+            effects = nan(1, nb_channels);
+            all_effects = [fmodel.observables.response_max_pm ; fmodel.observables.response_min_pm];
+            all_effects_std = [fmodel.observables.response_max_pstd ; fmodel.observables.response_min_pstd];
+            [vv, ii] = max(abs(all_effects));
+            sign = ii;
+            sign(sign==2) = -1;
+            effects(:, nirs_ichans) = vv .* sign;
 
-                sStudy = bst_get('Study', sInputs(1).iStudy); 
-
-                OutputFile = save_chan_output(effects', [], [1], ...
-                                              'data_spree', output_comment, DataMat, ... 
-                                               sStudy, sInputs(1).iStudy, extra_output);
+            effects_std = nan(1, nb_channels);
+            for ichan=1:nb_channels
+                effects_std(:, ichan) = all_effects_std(ii(ichan), ichan);
             end
+
+            sStudy = bst_get('Study', sInputs(1).iStudy); 
+
+            OutputFile = save_chan_output(effects', [], [1], ...
+                                          'data_spree', output_comment, DataMat, ... 
+                                           sStudy, sInputs(1).iStudy, extra_output);
         end
     end
-    
     if sProcess.options.save_ppm.Value
         output_comment = [output_prefix '- PPM'];
         warning('PPM output not implemented');
@@ -441,7 +434,7 @@ nirs.events = events(1);
 % end
 
 %% Setup model
-model = spree_splhblf_init_default(); 
+model = spree_splhblf_init_default();
 model.options.trend_type = 'cosine';
 model.options.trend_bands(1).name = 'baseline';
 model.options.trend_bands(1).bounds = [0 0.01]; %[0 0.01]; % .[0 0.0225]
@@ -453,7 +446,7 @@ model.options.npb_mirror_trend_fix = 150; %nb  samples to mirror at boundaries
 
 model.options.knots_type = 'regular';
 model.options.response_duration = 30;
-model.options.regular_knots_dt = 6;
+model.options.regular_knots_dt = 2;
 model.options.bandpass_residuals = [];
 model = spree_set_estimation(model, {'f1', 'noise_var', 'f1_var', 'response', 'trend_coeffs', 'trend_var'}); % model_set_estimation
 model.max_iterations = nb_iterations;
@@ -542,7 +535,7 @@ end
 
 function plot_deconv_results(model, chan_labels, output_dir, fig_prefix, close_figs)
 
-save_figs = 1;
+save_fig = 0;
 
 peak_types = {'peak', 'undershoot'};
 extremas = {'max', 'min'};
@@ -613,7 +606,7 @@ for ichan=1:model.constants.n_channels
     flabel = [fig_prefix 'response_PM_peak_results_' chan_label];
     h = fig_from_label(flabel); hold on;
     peak_type = 'extremum';
-
+        hb_types={'HbO'};
     if ~isempty(strfind('HbO', chan_label))
         ihb = 1;
     else
@@ -639,11 +632,11 @@ for ichan=1:model.constants.n_channels
     %
     %     hstack = get(gca, 'Children');
     %     set(gca, 'Children', [hstack(2:end) ; hstack(1)]);resid_colors
-    if 0
+    if 1
         % plot std dev of bandpassed residuals
         resid_colors = {[255 216 207] / 255,  [207 216 255] / 255};
         for ihb=1:length(hb_types)
-            model = models{ihb};
+            %model = model{ihb};
             resid_color = resid_colors{ihb};
             res = model.constants.y(:, ichan) - model.stim_induced_fit(:, ichan);
             
@@ -691,16 +684,16 @@ for ichan=1:model.constants.n_channels
     %fill_fig(h);
     
     %plot_2d_contour_hist(model.vars_history.response_time_to_peak', model.vars_history.response_peak_value')
-    if save_figs
+    if save_fig
         save_fig(flabel, output_dir);
     end
     if close_figs
         close(h);
     end
-    
+
     if 0
         %% plot of fit vs input signal
-        for ihb = 1:length(hb_types) % channel of interest
+        for ihb = 1:1 % channel of interest
             hb_type = hb_types{ihb};
             chan_oi = chans_oi{ihb}(ichan);
             model = models{ihb};
@@ -897,7 +890,7 @@ txt_ic = ['$$' sprintf('\\textrm{CI}_{\\tau,0.95}=[%s;%s]s', ...
                    
 htxt_a = text(x_txt_ci, y_txt_ci, txt_ic, ...
             'VerticalAlignment', txt_valign, ...
-            'HorizontalAlignment', txt_halign, 'fontsize', txt_fontsize * fig_options.res_factor, ...
+            'HorizontalAlignment', txt_halign, 'fontsize', txt_fontsize * 1, ...
             'BackgroundColor', 'white', ...
             'interpreter', 'latex', 'Color',  curve_color * 0.7);
 
@@ -949,7 +942,7 @@ txt_halign = 'center';
 
 text(x_txts, y_txt, ...
     ['$$' sprintf('\\widehat{\\tau}=%1.1f s', tpeak) '$$'], 'VerticalAlignment', 'top', ...
-    'HorizontalAlignment', txt_halign, 'fontsize', txt_fontsize * fig_options.res_factor, ...
+    'HorizontalAlignment', txt_halign, 'fontsize', txt_fontsize * 1, ...
     'Color', curve_color, 'interpreter', 'latex');
 
 end
@@ -1006,3 +999,4 @@ warning('off','all');
 z = griddata(x1,x2,fout,xq,yq);
 warning(orig_state);
 end
+
