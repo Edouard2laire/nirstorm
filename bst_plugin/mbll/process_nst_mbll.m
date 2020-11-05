@@ -30,7 +30,7 @@ function sProcess = GetDescription() %#ok<DEFNU>
     sProcess.Comment     = 'MBLL - raw to delta [HbO], [HbR] & [HbT]';
     sProcess.FileTag     = '_Hb';
     sProcess.Category    = 'File';
-    sProcess.SubGroup    = 'NIRS';
+    sProcess.SubGroup    = {'NIRS', 'dOD and MBLL'};
     sProcess.Index       = 1304; %0: not shown, >0: defines place in the list of processes
     sProcess.Description = 'http://neuroimage.usc.edu/brainstorm/Tutorials/NIRSFingerTapping#Compute_.5BHb.5D_variations_-_Modified_Beer-Lambert_Law';
     % Definition of the input accepted by this process
@@ -98,18 +98,20 @@ function OutputFile = Run(sProcess, sInputs) %#ok<DEFNU>
         return;
     end
     
-    if any(any(sDataIn.F(sDataIn.ChannelFlag~=-1, :) < 0))
-        msg = 'Good channels contains negative values. Consider running NISTORM -> Set bad channels';
-        bst_error(msg, '[Hb] quantification', 0);
-        return;
-    end
-    
     % Remove bad channels: they won't enter MBLL computation so no need to keep them 
     [good_nirs, good_channel_def] = filter_bad_channels(sDataIn.F', ChanneMat, sDataIn.ChannelFlag);
     
     % Separate NIRS channels from others (NIRS_AUX etc.)                                                
     [fnirs, fchannel_def, nirs_other, channel_def_other] = ...
         filter_data_by_channel_type(good_nirs, good_channel_def, 'NIRS');
+    
+    
+    if any(any(fnirs < 0))
+        msg = 'Good channels contains negative values. Consider running NISTORM -> Set bad channels';
+        bst_error(msg, '[Hb] quantification', 0);
+    return;
+    end
+    
     
     % Apply MBLL
     % TODO: add baseline window and expose it

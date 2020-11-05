@@ -30,7 +30,7 @@ function sProcess = GetDescription() %#ok<DEFNU>
     sProcess.Comment     = 'Raw to delta OD';
     sProcess.FileTag     = ' | dOD';
     sProcess.Category    = 'File';
-    sProcess.SubGroup    = 'NIRS';
+    sProcess.SubGroup    = {'NIRS', 'dOD and MBLL'};
     sProcess.Index       = 1303; %0: not shown, >0: defines place in the list of processes
     sProcess.Description = '';
     % Definition of the input accepted by this process
@@ -126,6 +126,12 @@ function OutputFile = Run(sProcess, sInputs) %#ok<DEFNU>
     % Remove bad channels: they won't enter dOD computation so no need to keep them     
     % Separate NIRS channels from others (NIRS_AUX etc.)
     to_keep = sDataIn.ChannelFlag ~= -1 & strcmpi({ChanneMat.Channel.Type}, 'NIRS')';
+    
+   if any(any(sDataIn.F(to_keep, :) < 0))
+        msg = 'Good channels contains negative values. Consider running NISTORM -> Set bad channels';
+        bst_error(msg, '[dOD] quantification', 0);
+    return;
+    end
     
     % Apply dOD computation
     nirs_dOD = Compute(sDataIn.F(to_keep, :), parameters);
