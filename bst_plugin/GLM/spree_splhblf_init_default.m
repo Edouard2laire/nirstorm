@@ -16,10 +16,10 @@ model.options.polybl_nb_coeffs = 4;
 model.options.trend_type = 'cosine';
 model.options.trend_bands(1).name = 'baseline';
 model.options.trend_bands(1).bounds = [0 0.01];
-model.options.trend_bands(2).name = 'respiration';
-model.options.trend_bands(2).bounds = [0.16 0.33];
-model.options.trend_bands(3).name = 'heart';
-model.options.trend_bands(3).bounds = [1 1.25];
+% model.options.trend_bands(2).name = 'respiration';
+% model.options.trend_bands(2).bounds = [0.16 0.33];
+% model.options.trend_bands(3).name = 'heart';
+% model.options.trend_bands(3).bounds = [1 1.25];
 model.options.npb_mirror_trend_fix = 10;
 
 % model.options.bandpass_residuals = [0.005 0.08]; %Hz

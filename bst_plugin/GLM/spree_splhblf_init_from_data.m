@@ -75,7 +75,7 @@ else
 
     model.constants.F = spcol(knots, spline_order, ...
         model.constants.response_time_axis);
-    if 0
+    if 1
         fig_id = 2;
         fig_visibility = 'on';
         h = figure(fig_id); clf(fig_id); set(h, 'visible', fig_visibility); hold on;

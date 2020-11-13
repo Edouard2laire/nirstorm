@@ -21,6 +21,7 @@ function [model_upd] = gs_sampling(model)
 if model.iteration == 5
     tic
 end
+mode=0;% 1 version all channels at once, 0 version channel by channels
 
 % f1stats
 if model.variables_to_estimate.f1
@@ -32,7 +33,7 @@ if model.variables_to_estimate.f1
         model.tmp.part_res_f1 = model.other_true_val.stim_induced;
     end
     
-    if 1 % version all channels at once
+    if mode % version all channels at once
         %TODO: put this in tmp to gain a little time:
         pp_post_var = zeros(model.constants.f1_nb_coeffs, model.constants.f1_nb_coeffs, model.constants.n_channels);
         pp_post_mean = zeros(model.constants.n_channels, model.constants.f1_nb_coeffs);
@@ -123,7 +124,7 @@ end
 
 % noise variance
 if model.variables_to_estimate.noise_var
-    if 0 % -> channel-wise (slow)
+    if ~mode % -> channel-wise (slow)
         for ic=1:model.constants.n_channels
             if ~model.options.use_true_noise
                 model.tmp.res = model.constants.y(:,ic) - ...
@@ -153,7 +154,7 @@ end
 
 % trend coeffs
 if model.variables_to_estimate.trend_coeffs
-    if 0 % -> channel wise (slow)
+    if ~mode % -> channel wise (slow)
         if ~model.options.use_true_trend
             model.tmp.part_res_trend(:, ic) = ...
                 model.constants.y(:,ic) - ...

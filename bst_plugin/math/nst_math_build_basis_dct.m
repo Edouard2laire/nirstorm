@@ -35,7 +35,7 @@ function [cmat, band_indexes] = nst_math_build_basis_dct(nsamples, sampling_rate
 % cache in tmp to avoid costly recomputations ...
 % TODO: expose cached file name to clean properly after
 
-global nirs_deconv_cache
+%global nirs_deconv_cache
 
 cache_dir = '/tmp/nirs_dyna';
 band_indexes = {};
