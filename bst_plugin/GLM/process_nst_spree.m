@@ -81,15 +81,12 @@ function sProcess = GetDescription() %#ok<DEFNU>
     sProcess.options.save_full_fitted_model.Type    = 'checkbox';
     sProcess.options.save_full_fitted_model.Value   =  0;
     
-    sProcess.options.save_fit.Comment = 'Fit';
-    sProcess.options.save_fit.Type    = 'checkbox';
-    sProcess.options.save_fit.Value   =  0;
     
     sProcess.options.output_fig_dir.Comment = 'Figure output directory: ';
     sProcess.options.output_fig_dir.Type    = 'text';
     sProcess.options.output_fig_dir.Value   = '';
     
-    sProcess.options.fig_prefix.Value.Comment = 'Figures name prefix: ';
+    sProcess.options.fig_prefix.Comment = 'Figures name prefix: ';
     sProcess.options.fig_prefix.Type    = 'text';
     sProcess.options.fig_prefix.Value   = '';
 end
@@ -284,7 +281,7 @@ function OutputFile = Run(sProcess, sInputs) %#ok<DEFNU>
         if ~exist(fig_dir, 'dir')
             mkdir(fig_dir);
         end
-        fig_prefix = sProcess.options.fig_prefix.Value
+        fig_prefix = sProcess.options.fig_prefix.Value;
         close_figs = 1; 
         plot_deconv_results(fmodel, {ChannelMat.Channel(nirs_ichans).Name}, fig_dir, fig_prefix, close_figs)
     end
@@ -396,6 +393,7 @@ model = spree_set_estimation(model, {'f1', 'noise_var', 'f1_var', 'response', 't
 model.max_iterations = nb_iterations;
 model.var_hist_pace = 1; %TODO: debug when pace > 1
 model.obs_hist_pace = 1;
+model.options.display_debug = 1;
 model = spree_splhblf_init_from_data(model, nirs);
 model.burnin_period = round(model.max_iterations/3);
 
