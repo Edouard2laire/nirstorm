@@ -35,6 +35,7 @@ preprocessing/process_nst_separations.m
 preprocessing/process_nst_sci.m
 preprocessing/process_nst_deglitch.m
 preprocessing/process_nst_detect_bad.m
+preprocessing/process_nst_detect_motion.m
 preprocessing/process_nst_iir_filter.m
 preprocessing/process_nst_motion_correction.m
 preprocessing/process_nst_extract_ssc.m
