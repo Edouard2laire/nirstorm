@@ -110,22 +110,56 @@ function [TOI,motion]= Compute(sData, channel_def, options)
     
     signal=sData.F';
     fs= 1/ (sData.Time(2)-sData.Time(1));
+    n_sample = length(sData.Time);
     nirs_signal=signal(:,nirs_flags);
-    mov_std=movstd(nirs_signal,windows_length,1);
-    mov_mean=movmean(nirs_signal,windows_length,1);
+    n_channel = size(nirs_signal,2);
+    
+    mov_mean= zeros(n_sample,n_channel); 
+    mov_std= zeros(n_sample,n_channel); 
+    
+    
+    % Note: the following code is equivalent to : 
+    % mov_mean = movmean(nirs_signal,windows_length+1,1);
+    % mov_std  = movstd(nirs_signal,windows_length+1,1);
+    
+    for i = 1:n_sample
+       windows_start =  max( 1,i - windows_length/2);
+       windows_end   =  min( length(sData.Time), i + windows_length/2);
+       
+       nirs_windows  = nirs_signal(windows_start:windows_end,:);
+       mov_mean(i,:) = mean(nirs_windows);
+       mov_std(i,:)  = std(nirs_windows);
+        
+    end    
     
     CV = mov_std./mov_mean.*100;
     
     CV_base = std(nirs_signal,1)./mean(nirs_signal,1).*100;
-    threshold=zeros(size(CV_base,2));
+    threshold=zeros(1,n_channel);
     TOI= zeros(size(nirs_signal));
-    for i_chan=1:size(CV_base,2)
-        chan_number=i_chan;
+    
+    figure(2); clf;
+    subplot(ceil(sqrt(size(CV_base,2))),ceil(sqrt(size(CV_base,2))),1);
+    
+    for i_chan=1:size(CV_base,2)        
+        CV_fit = fitdist(CV(:,i_chan),'Normal');
         
-        CV_fit = fitdist(CV(:,chan_number),'Normal');
-        threshold(i_chan) = icdf(CV_fit,0.99);
+        [f,xi] = ksdensity(CV(:,i_chan),'Bandwidth',0.01);
+
+        [est_icdft,xi2,bw] = ksdensity(CV(:,i_chan),'Function','icdf','Bandwidth',0.01);
+        if isempty(min(est_icdft(xi2 >= 0.95)))
+            threshold(i_chan) = max(CV(:,i_chan)) +1;
+        else
+            threshold(i_chan) = min(est_icdft(xi2 >= 0.95));   
+        end
         
-        TOI(:,i_chan)= abs(CV(:,chan_number)) > threshold(chan_number);
+        subplot(ceil(sqrt(size(CV_base,2))),ceil(sqrt(size(CV_base,2))),i_chan);
+        plot(xi,f)
+        line([threshold(i_chan) threshold(i_chan)], ylim(gca),'Color', 'r') 
+        title(  channel_def(i_chan).Name)      
+                
+        
+        TOI(:,i_chan)= abs(CV(:,i_chan)) > threshold(i_chan);
 %         figure( 2*(i_chan-1)+1); 
 %         figure(); 
 %         subplot(3,1,1); hold on;   plot(sData.Time,nirs_signal(:,chan_number));
@@ -153,15 +187,15 @@ function [TOI,motion]= Compute(sData, channel_def, options)
     motion=[];
     for i= 1:length(vote)
        if  vote(i) > threshold_high && ~is_motion
-            start_motion=i;
+            start_motion=sData.Time(i);
             is_motion=1;
        end
        
        if is_motion && vote(i) < threshold_low
             is_motion=0;
-            end_motion = i;
+            end_motion = sData.Time(i);
             
-            motion(:,end+1)=[start_motion-1 ; end_motion-1]/fs;
+            motion(:,end+1)=[start_motion ; end_motion];
        end    
     end    
     
