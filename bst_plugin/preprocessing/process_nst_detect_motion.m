@@ -103,13 +103,18 @@ end
 
 %% ===== Compute =====
 function [TOI,motion]= Compute(sData, channel_def, options)
+
+    % Todo: 
+    % - Metric: check the difference using different metric: std, sci, power, 
+    % - Distribution fit: see the importance of the bandwith parameter
+    % - Votation: determine a better threeshold value. (naive bayes
+    % classifier?)
     
     nirs_flags = (sData.ChannelFlag==1)'  & strcmpi({channel_def.Channel.Type}, 'NIRS');
     channel_def = channel_def.Channel(nirs_flags);
     windows_length = options.windows_length;
     
     signal=sData.F';
-    fs= 1/ (sData.Time(2)-sData.Time(1));
     n_sample = length(sData.Time);
     nirs_signal=signal(:,nirs_flags);
     n_channel = size(nirs_signal,2);
@@ -134,52 +139,42 @@ function [TOI,motion]= Compute(sData, channel_def, options)
     
     CV = mov_std./mov_mean.*100;
     
-    CV_base = std(nirs_signal,1)./mean(nirs_signal,1).*100;
     threshold=zeros(1,n_channel);
-    TOI= zeros(size(nirs_signal));
+    TOI= zeros(size(nirs_signal)); % Time of interest.
     
     figure(2); clf;
-    subplot(ceil(sqrt(size(CV_base,2))),ceil(sqrt(size(CV_base,2))),1);
+    subplot(ceil(sqrt(n_channel)),ceil(sqrt(n_channel)),1);
+    warning('')
     
-    for i_chan=1:size(CV_base,2)        
-        CV_fit = fitdist(CV(:,i_chan),'Normal');
-        
+    for i_chan=1:n_channel               
         [f,xi] = ksdensity(CV(:,i_chan),'Bandwidth',0.01);
-
-        [est_icdft,xi2,bw] = ksdensity(CV(:,i_chan),'Function','icdf','Bandwidth',0.01);
+        [est_icdft,xi2,bw] = ksdensity(CV(:,i_chan),'Function','icdf'); %,'Bandwidth',0.01);
+        [warnMsg, warnId] = lastwarn;
+        disp(sprintf('channel %s - BW: %.2f',channel_def(i_chan).Name,bw)) 
+        if ~isempty(warnMsg)
+            disp(sprintf('icdf did not converge for channel %s (%s)',...
+                         channel_def(i_chan).Name, warnMsg));
+        end     
+   
         if isempty(min(est_icdft(xi2 >= 0.95)))
             threshold(i_chan) = max(CV(:,i_chan)) +1;
         else
             threshold(i_chan) = min(est_icdft(xi2 >= 0.95));   
         end
-        
-        subplot(ceil(sqrt(size(CV_base,2))),ceil(sqrt(size(CV_base,2))),i_chan);
+        TOI(:,i_chan)= abs(CV(:,i_chan)) > threshold(i_chan);
+
+        subplot(ceil(sqrt(n_channel)),ceil(sqrt(n_channel)),i_chan);
         plot(xi,f)
         line([threshold(i_chan) threshold(i_chan)], ylim(gca),'Color', 'r') 
         title(  channel_def(i_chan).Name)      
-                
-        
-        TOI(:,i_chan)= abs(CV(:,i_chan)) > threshold(i_chan);
-%         figure( 2*(i_chan-1)+1); 
-%         figure(); 
-%         subplot(3,1,1); hold on;   plot(sData.Time,nirs_signal(:,chan_number));
-%         ylim([0 max(nirs_signal(:,chan_number))*1.2]);
-%         subplot(3,1,2);    plot(sData.Time,CV(:,chan_number));
-%         ylim([0 100]);
-%         subplot(3,1,3);    plot(sData.Time,COI);
-
-%         figure(i_chan); 
-%         title(sprintf('mean CV : %.2f, base:%.2f',mean(CV(:,chan_number)),CV_base(chan_number)))
-%         hold on;
-%         histogram(CV(:,chan_number))
-%         xlim([0 100]);
-%         line([icdf(CV_fit,0.99), icdf(CV_fit,0.99)], ylim(gca), 'LineWidth', 2, 'Color', 'g');
     end
+    
     vote=sum(TOI,2); 
-    percentage_of_vote=sum(TOI,1); 
+    % percentage_of_vote=sum(TOI,1); 
+    % arround 5% for all channels as expected :)
+    % figure; stem(100*percentage_of_vote/n_sample)
     
-    
-    % Threshold the vote 
+    % Threshold the vote using hysteresis principle
     threshold_high = 12;
     threshold_low = 5;
     
