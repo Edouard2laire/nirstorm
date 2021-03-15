@@ -287,9 +287,14 @@ nb_samples = size(nirs_sig, 1);
 nirs_hb_p = zeros(nb_pairs, 3, nb_samples);
 for ipair=1:size(nirs_psig, 1)
     hb_extinctions = get_hb_extinctions(channel_def.Nirs.Wavelengths); % cm^-1.l.mol^-1
-
-    delta_od = process_nst_dOD('Compute', squeeze(nirs_psig(ipair, :, :)), ...
-                               dOD_params);
+    
+    if ~ isempty(dOD_params)
+        delta_od = process_nst_dOD('Compute', squeeze(nirs_psig(ipair, :, :)), ...
+                                   dOD_params);
+    else 
+        delta_od = squeeze(nirs_psig(ipair, :, :));
+    end   
+    
     if do_plp_corr
         %TODO: ppf can be computed only once before the loop over pairs
         delta_od_ppf_fixed = fix_ppf(delta_od, channel_def.Nirs.Wavelengths, age, pvf, dpf_method);
@@ -879,9 +884,6 @@ extinction_hbo_hbr_ref = [
 998	1035.2	222.072;
 1000	1024	206.784;
 ];
-
-extinction_hbo_hbr_ref(:,2) = extinction_hbo_hbr_ref(:,2) * 2.303;
-extinction_hbo_hbr_ref(:,3) = extinction_hbo_hbr_ref(:,3) * 2.303;
 
 if any(wavelengths > extinction_hbo_hbr_ref(end,1)) || ...
     any(wavelengths < extinction_hbo_hbr_ref(1,1))
