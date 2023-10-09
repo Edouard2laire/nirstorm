@@ -5,7 +5,6 @@ function montage_info = nst_montage_info_from_bst_channels(channel_def, channel_
 %        Definition of channels as given by brainstorm (see db_template('channeldesc'))
 %   [- channel_flags]: 1D array of int
 %        Allow channel filtering (only keep channel_flags==1)
-% TOCHECK WARNING: uses containers.Map which is available only from matlab > v2008
 %
 %  Outputs: struct with following fields: 
 %     - pair_names: cell array of str, size: nb_pairs
@@ -36,7 +35,6 @@ function montage_info = nst_montage_info_from_bst_channels(channel_def, channel_
 %         Channel indexes to which the detector belongs (indexed by 1-based
 %         continuous index).
 %
-% TODO: test channel flags
 
 if nargin < 2
     channel_flags = ones(1, length(channel_def));
@@ -44,7 +42,7 @@ end
 
 [isrcs, idets, chan_measures, measure_type] = nst_unformat_channels({channel_def.Name});
 measure_types = nst_measure_types();
-all_measures = unique(chan_measures(~isnan(chan_measures)));
+all_measures = unique(chan_measures(~isnan(measure_type)));
 nb_measures = length(all_measures);
 
 %TODO: reuse already parsed isrcs / idets / measures

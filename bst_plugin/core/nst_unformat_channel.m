@@ -24,8 +24,7 @@ if nargin < 2
     warn_bad_channel = 0;
 end
 
-CHAN_RE = '^S([0-9]+)D([0-9]+)(WL\d+|HbO|HbR|HbT)$';
-toks = regexp(channel_label, CHAN_RE, 'tokens');
+toks  = regexp(channel_label, nst_get_formats().chan_re, 'names');
 if isempty(toks)
     if warn_bad_channel
         warning('NIRSTORM:MalformedChannelLabel', ...
@@ -36,18 +35,18 @@ if isempty(toks)
     idet = nan;
     measure = nan;
     channel_type = nan;
-else
-    isrc = str2double(toks{1}{1});
-    idet = str2double(toks{1}{2});
-    measure = toks{1}{3};
-    
-    measure_types = nst_measure_types();
-    if ~isempty(strfind(measure, 'WL'))
-        channel_type = measure_types.WAVELENGTH;
-        measure = str2double(measure(3:end));
-    else
-        channel_type = measure_types.HB;
-    end
+    return;
 end
 
+isrc = str2double(toks.src_id);
+idet = str2double(toks.det_id);
+measure = toks.measure;
+
+measure_types = nst_measure_types();
+if contains(measure,'WL')
+    channel_type = measure_types.WAVELENGTH;
+    measure = str2double(measure(3:end));
+else
+    channel_type = measure_types.HB;
+end
 end
