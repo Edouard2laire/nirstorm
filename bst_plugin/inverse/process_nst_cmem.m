@@ -146,7 +146,7 @@ sResults = Compute(OPTIONS,ChannelMat, sDataIn );
 
 bst_progress('text', 'Saving Results...');
 
-for iMap = 1:length(sResults)
+for iMap = 1:1 %length(sResults)
      [sStudy, ResultFile] = add_surf_data(sResults(iMap).ImageGridAmp , sDataIn.Time, nirs_head_model, ...
                                           sResults(iMap).Comment, sInputs, sStudy, ...
                                           sResults(iMap).History, sResults(iMap).Units , ...
@@ -191,7 +191,7 @@ function sResults = Compute(OPTIONS,ChannelMat, sDataIn )
     end
 
        
-    for iwl=1:nb_wavelengths
+    for iwl=1:1
         swl = ['WL' num2str(ChannelMat.Nirs.Wavelengths(iwl))];
         selected_chans = strcmpi({ChannelMat.Channel.Group}, swl) & (sDataIn.ChannelFlag>0)';
         
@@ -263,12 +263,12 @@ function sResults = Compute(OPTIONS,ChannelMat, sDataIn )
     end
 
     Hb_sources = zeros(length(valid_nodes), 3, size(dOD_sources,3));
-    for inode=1:length(valid_nodes)
-        Hb_sources(inode, 1:2, :) = pinv(hb_extinctions) * ...
-                                    squeeze(dOD_sources(inode, :, :));
-    
-    end
-    Hb_sources(:,3,:) = squeeze(sum(Hb_sources, 2));
+    % for inode=1:length(valid_nodes)
+    %     Hb_sources(inode, 1:2, :) = pinv(hb_extinctions) * ...
+    %                                 squeeze(dOD_sources(inode, :, :));
+    % 
+    % end
+    % Hb_sources(:,3,:) = squeeze(sum(Hb_sources, 2));
 
     hb_unit_factor = 1e6;
     hb_unit = '\mumol.l-1';

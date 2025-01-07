@@ -122,8 +122,9 @@ if OPTIONS.depth_weigth_MNE > 0
 else
     function_name='MNE';
 end    
-for iwl=1:nb_wavelengths
+
 OPTIONS.DataTime  = [];
+for iwl=1:1
     swl = [measure_tag num2str(ChannelMat.Nirs.Wavelengths(iwl))];
     [sStudy, ResultFile] = add_surf_data({mapping, squeeze(dOD_sources_wMNE(:,iwl,:))}, sDataIn.Time, nirs_head_model, ...
                                         [function_name ' sources - ' swl 'nm'], ...
@@ -137,15 +138,15 @@ hb_unit_factor = 1e6;
 hb_unit = '\mumol.l-1';
 hb_types = {'HbO', 'HbR', 'HbT'};
 
-for ihb=1:3
-    
-    [sStudy, ResultFile] = add_surf_data({mapping, squeeze(Hb_sources(:,ihb,:)) .* hb_unit_factor},...
-                                         sDataIn.Time, nirs_head_model, ...
-                                         [function_name ' sources - ' hb_types{ihb}], ...
-                                         sInputs, sStudy, [function_name ' sources reconstruction - dHb'], ...
-                                         hb_unit, store_sparse_results);    
-    OutputFiles{end+1} = ResultFile;
-end
+% for ihb=1:3
+% 
+%     [sStudy, ResultFile] = add_surf_data({mapping, squeeze(Hb_sources(:,ihb,:)) .* hb_unit_factor},...
+%                                          sDataIn.Time, nirs_head_model, ...
+%                                          [function_name ' sources - ' hb_types{ihb}], ...
+%                                          sInputs, sStudy, [function_name ' sources reconstruction - dHb'], ...
+%                                          hb_unit, OPTIONS);    
+%     OutputFiles{end+1} = ResultFile;
+% end
 
 bst_progress('stop', 'Reconstruction by wMNE', 'Finishing...');
 % Update Brainstorm database
@@ -199,7 +200,7 @@ function [mapping,dOD_sources,Hb_sources] = Compute(OPTIONS,ChannelMat, sDataIn 
 
     dOD_sources = zeros(length(valid_nodes), nb_wavelengths, nb_samples);
 
-    for iwl=1:nb_wavelengths
+    for iwl=1:1
         swl = ['WL' num2str(ChannelMat.Nirs.Wavelengths(iwl))];
         selected_chans = strcmpi({ChannelMat.Channel.Group}, swl) & (sDataIn.ChannelFlag>0)';
         
