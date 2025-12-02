@@ -41,6 +41,11 @@ sProcess.nInputs     = 1;
 sProcess.nMinFiles   = 1;
 % Definition of the options
 
+% === Sensor types
+sProcess.options.sensortypes.Comment = 'Sensor types or names (empty=all): ';
+sProcess.options.sensortypes.Type    = 'text';
+sProcess.options.sensortypes.Value   = 'NIRS';
+sProcess.options.sensortypes.InputTypes = {'data', 'raw'};
 
 sProcess.options.method.Type       = 'radio_linelabel';
 sProcess.options.method.Comment    = {'Spline correction', ' Temporal Derivative Distribution Repair','Motion correction algorithm'; 'spline', 'tddr',''};
@@ -133,23 +138,26 @@ if strcmp(sProcess.options.method.Value,'spline')
     end
 end
 
-
-
-% Process only NIRS channels
+% Select desired channels
 channels = in_bst_channel(sInputs.ChannelFile);
-nirs_ichans = channel_find(channels.Channel, 'NIRS');
-data_nirs = sInputs.A(nirs_ichans, :)';
+if ~isempty(sProcess.options.sensortypes.Value)
+    iChans = channel_find(channels.Channel, sProcess.options.sensortypes.Value);
+else
+    iChans = 1:length(channels.Channel);
+end
 
-prev_negs = any(data_nirs <= 0, 1);
+hasNIRS     = any(contains({channels.Channel.Type}, 'NIRS'));
+data_nirs   = sInputs.A(iChans, :)';
 
-data_corr = Compute(data_nirs, sInputs.TimeVector', event,sProcess.options.method.Value,sProcess.options.option_smoothing.Value{1});
+prev_negs   = any(data_nirs <= 0, 1);
+data_corr   = Compute(data_nirs, sInputs.TimeVector', event,sProcess.options.method.Value,sProcess.options.option_smoothing.Value{1});
+new_negs    = any(data_corr <= 0, 1) & ~prev_negs;
 
-new_negs = any(data_corr <= 0, 1) & ~prev_negs;
-negative_chan=find(new_negs);
-pair_indexes = nst_get_pair_indexes_from_names({channels.Channel(nirs_ichans).Name});
-
-if any(new_negs)
+if hasNIRS && any(new_negs)
     bst_report('Warning', sProcess, sInputs, 'Motion correction introduced negative values. Will be fixed by local offset');
+    
+    negative_chan   = find(new_negs);
+    pair_indexes    = nst_get_pair_indexes_from_names({channels.Channel(iChans).Name});
 
     for ineg=1:length(negative_chan)
         ipair=find(any(pair_indexes(:, :) == negative_chan(ineg),2));
@@ -165,7 +173,7 @@ if any(new_negs)
 end
 
 % Export 
-sInputs.A(nirs_ichans,:) = data_corr';
+sInputs.A(iChans,:)      = data_corr';
 sInputs.CommentTag       = FormatComment(sProcess);
 
 end
