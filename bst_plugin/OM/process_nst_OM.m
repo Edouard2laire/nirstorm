@@ -74,10 +74,10 @@ function OutputFile = Run(sProcess, sInput)
         bst_error('Optimum montage is not available in the compiled version of brainstorm');
         return;
     end        
-    cplex_url = 'https://www.ibm.com/us-en/marketplace/ibm-ilog-cplex/resources';
-    if ~check_cplex(cplex_url)
-        bst_error(['CPLEX >12.3 required. See ' cplex_url]);
-    end
+    % cplex_url = 'https://www.ibm.com/us-en/marketplace/ibm-ilog-cplex/resources';
+    % if ~check_cplex(cplex_url)
+    %     bst_error(['CPLEX >12.3 required. See ' cplex_url]);
+    % end
 
     SubjectName = options.SubjectName;
     sProcess.options.subjectname.Value = SubjectName;
