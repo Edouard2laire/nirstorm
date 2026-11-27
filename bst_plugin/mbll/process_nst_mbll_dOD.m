@@ -77,7 +77,6 @@ function OutputFile = Run(sProcess, sInputs)
 
     unique_input_conditions = unique({sInputs.Condition});
     for iCondition = 1:length(unique_input_conditions)
-
         iFiles = find(strcmp({sInputs.Condition}, unique_input_conditions{iCondition}));
 
         % Load channel file
@@ -104,9 +103,10 @@ function OutputFile = Run(sProcess, sInputs)
 
         % Save channel definition
         [tmp, iChannelStudy] = bst_get('ChannelForStudy', iStudy);
+
+        % 1. Todo generate channel file
         db_set_channel(iChannelStudy, ChannelMat, 2, 0);
-
-
+        
         for iFile = 1:length(iFiles)
 
             % Load recordings
@@ -147,68 +147,64 @@ function OutputFile = Run(sProcess, sInputs)
                 [final_nirs_std, ~] = process_nst_mbll('concatenate_data',nirs_hb, channels_hb, nirs_other, channel_def_other);
             
             end
-        end
 
+            if ~isRaw        
+                % Save time-series data
+                sDataOut = db_template('data');
+                sDataOut.F            = final_nirs'; 
+                if ~isempty(sDataIn.Std)
+                    sDataOut.Std          = final_nirs_std';
+                end
+                sDataOut.Comment      = [sInputs(1).Comment ' | Hb [Topo]'];
+                sDataOut.ChannelFlag  = ones(size(final_nirs, 2), 1);
+                sDataOut.Time         = sDataIn.Time;
+                sDataOut.DataType     = 'recordings'; 
+                sDataOut.nAvg         = sDataIn.nAvg;
+                sDataOut.Leff         = sDataIn.Leff;
+                sDataOut.Events       = events;
+                sDataOut.History      = sDataIn.History;
+                sDataOut = bst_history('add', sDataOut, 'process', sProcess.Comment);
+                sDataOut.DisplayUnits = 'mol.l-1';
+
+                % Generate a new file name in the same folder
+                OutputFile = bst_process('GetNewFilename', bst_fileparts(sStudy.FileName), 'data_hb');
+                sDataOut.FileName = file_short(OutputFile);
+                bst_save(OutputFile, sDataOut, 'v7');
+                % Register in database
+                db_add_data(iStudy, OutputFile, sDataOut);
+            else
+                OutputFile = bst_process('GetNewFilename', bst_fileparts(sStudy.FileName), 'data_0raw_hb');
+
+                ProtocolInfo = bst_get('ProtocolInfo');
+                newStudyPath = bst_fullfile(ProtocolInfo.STUDIES, sInputs.SubjectName, newCondition);
+
+                [tmp, rawBaseOut, rawBaseExt] = bst_fileparts(newStudyPath);
+                rawBaseOut = strrep([rawBaseOut rawBaseExt], '@raw', '');
+                % Full output filename
+                RawFileOut = bst_fullfile(newStudyPath, [rawBaseOut '.bst']);
+
+                sFileIn = sDataRaw.F;
+                sFileIn.channelflag  = ones(size(final_nirs, 2), 1);
+                [sFileOut, errMsg] = out_fopen(RawFileOut, 'BST-BIN', sFileIn, ChannelMat);
+
+                % Set Output sFile structure
+                sOutMat.format = 'BST-BIN';
+                sOutMat.F = sFileOut;
+                sOutMat.DataType     = 'raw'; 
+                sOutMat.History      = sDataIn.History;
+                sOutMat              = bst_history('add', sOutMat, 'process', sProcess.Comment);
+                sOutMat.ChannelFlag  = ones(size(final_nirs, 2), 1);
+                sOutMat.DisplayUnits = 'mol.l-1';
+                sOutMat.Comment = [sInputs(1).Comment ' | Hb [Topo]'];
+
+                % Save new link to raw .mat file
+                bst_save(OutputFile, sOutMat, 'v6');
+                % Write block
+                out_fwrite(sFileOut, ChannelMat, 1, [], [], final_nirs');
+                % Register in BST database
+                db_add_data(iStudy, OutputFile, sOutMat);
+            end
+        end
     end
-
-
-
-
-    if ~isRaw        
-        % Save time-series data
-        sDataOut = db_template('data');
-        sDataOut.F            = final_nirs'; 
-        if ~isempty(sDataIn.Std)
-            sDataOut.Std          = final_nirs_std';
-        end
-        sDataOut.Comment      = [sInputs(1).Comment ' | Hb [Topo]'];
-        sDataOut.ChannelFlag  = ones(size(final_nirs, 2), 1);
-        sDataOut.Time         = sDataIn.Time;
-        sDataOut.DataType     = 'recordings'; 
-        sDataOut.nAvg         = sDataIn.nAvg;
-        sDataOut.Leff         = sDataIn.Leff;
-        sDataOut.Events       = events;
-        sDataOut.History      = sDataIn.History;
-        sDataOut = bst_history('add', sDataOut, 'process', sProcess.Comment);
-        sDataOut.DisplayUnits = 'mol.l-1';
-    
-        % Generate a new file name in the same folder
-        OutputFile = bst_process('GetNewFilename', bst_fileparts(sStudy.FileName), 'data_hb');
-        sDataOut.FileName = file_short(OutputFile);
-        bst_save(OutputFile, sDataOut, 'v7');
-        % Register in database
-        db_add_data(iStudy, OutputFile, sDataOut);
-    else
-        OutputFile = bst_process('GetNewFilename', bst_fileparts(sStudy.FileName), 'data_0raw_hb');
-
-        ProtocolInfo = bst_get('ProtocolInfo');
-        newStudyPath = bst_fullfile(ProtocolInfo.STUDIES, sInputs.SubjectName, newCondition);
-
-        [tmp, rawBaseOut, rawBaseExt] = bst_fileparts(newStudyPath);
-        rawBaseOut = strrep([rawBaseOut rawBaseExt], '@raw', '');
-        % Full output filename
-        RawFileOut = bst_fullfile(newStudyPath, [rawBaseOut '.bst']);
-
-        sFileIn = sDataRaw.F;
-        sFileIn.channelflag  = ones(size(final_nirs, 2), 1);
-        [sFileOut, errMsg] = out_fopen(RawFileOut, 'BST-BIN', sFileIn, ChannelMat);
-
-         % Set Output sFile structure
-        sOutMat.format = 'BST-BIN';
-        sOutMat.F = sFileOut;
-        sOutMat.DataType     = 'raw'; 
-        sOutMat.History      = sDataIn.History;
-        sOutMat              = bst_history('add', sOutMat, 'process', sProcess.Comment);
-        sOutMat.ChannelFlag  = ones(size(final_nirs, 2), 1);
-        sOutMat.DisplayUnits = 'mol.l-1';
-        sOutMat.Comment = [sInputs(1).Comment ' | Hb [Topo]'];
-
-        % Save new link to raw .mat file
-        bst_save(OutputFile, sOutMat, 'v6');
-        % Write block
-        out_fwrite(sFileOut, ChannelMat, 1, [], [], final_nirs');
-        % Register in BST database
-        db_add_data(iStudy, OutputFile, sOutMat);
-     end
 end
 
