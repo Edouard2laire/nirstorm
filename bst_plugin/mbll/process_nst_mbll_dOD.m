@@ -29,7 +29,7 @@ function sProcess = GetDescription()
     % Description the process
     sProcess.Comment     = 'MBLL - delta OD to delta [HbO], [HbR] & [HbT]';
     sProcess.FileTag     = '_Hb';
-    sProcess.Category    = 'File';
+    sProcess.Category    = 'Custom';
     sProcess.SubGroup    = {'NIRS', 'dOD and MBLL'};
     sProcess.Index       = 1305; %0: not shown, >0: defines place in the list of processes
     sProcess.Description = 'https://neuroimage.usc.edu/brainstorm/Tutorials/NIRSTORM#Delta_OD_to_delta_.5BHbO.5D.2C_.5BHbR.5D_.26_.5BHbT.5D';
@@ -75,70 +75,83 @@ function OutputFile = Run(sProcess, sInputs)
     pvf             = sProcess.options.option_pvf.Value{1};
     dpf_method      = sProcess.options.option_dpf_method.Value{1};
 
-    % Load channel file
-    ChanneMat = in_bst_channel(sInputs(1).ChannelFile);
-    
-    % Load recordings
-    if strcmp(sInputs.FileType, 'data')     % Imported data structure
-        sDataIn = in_bst_data(sInputs(1).FileName);
-        events = sDataIn.Events;
-        isRaw  = 0;
-    elseif strcmp(sInputs.FileType, 'raw')  % Continuous data file       
-        sDataIn = in_bst(sInputs(1).FileName, [], 1, 0, 'no');
-        sDataRaw = in_bst_data(sInputs(1).FileName, 'F');
-        events = sDataRaw.F.events;
-        isRaw  = 1;
-    end
-    
-    % Remove bad channels: they won't enter MBLL computation so no need to keep them 
-    [good_nirs, good_channel_def] = process_nst_mbll('filter_bad_channels',sDataIn.F', ChanneMat, sDataIn.ChannelFlag);
-    
-    % Separate NIRS channels from others (NIRS_AUX etc.)                                                
-    [fnirs, fchannel_def, nirs_other, channel_def_other] = process_nst_mbll('filter_data_by_channel_type',good_nirs, good_channel_def, 'NIRS');
-    
-    % Apply MBLL
-    [nirs_hb, channels_hb] = process_nst_mbll('Compute',fnirs, fchannel_def, age, [], do_plp_corr, pvf, dpf_method); 
-    
-    % Re-add other channels that were not changed during MBLL
-    [final_nirs, ChannelMat] = process_nst_mbll('concatenate_data',nirs_hb, channels_hb, nirs_other, channel_def_other);
+    unique_input_conditions = unique({sInputs.Condition});
+    for iCondition = 1:length(unique_input_conditions)
 
-    if ~isempty(sDataIn.Std)
-        % Remove bad channels: they won't enter MBLL computation so no need to keep them 
-        [good_nirs, good_channel_def] = process_nst_mbll('filter_bad_channels',sDataIn.Std', ChanneMat, sDataIn.ChannelFlag);
-        
-        % Separate NIRS channels from others (NIRS_AUX etc.)                                                
-        [fnirs, fchannel_def, nirs_other, channel_def_other] = process_nst_mbll('filter_data_by_channel_type',good_nirs, good_channel_def, 'NIRS');
-        
-        % Apply MBLL
-        [nirs_hb, channels_hb] = process_nst_mbll('Compute',fnirs, fchannel_def, age, [], do_plp_corr, pvf, dpf_method); 
-        
-        % Re-add other channels that were not changed during MBLL
-        [final_nirs_std, ~] = process_nst_mbll('concatenate_data',nirs_hb, channels_hb, nirs_other, channel_def_other);
+        iFiles = find(strcmp({sInputs.Condition}, unique_input_conditions{iCondition}));
+
+        % Load channel file
+        ChanneMat = in_bst_channel(sInputs(iFiles(1)).ChannelFile);
+
+        % Create new condition because channel definition is different from original one
+        cond_name = sInputs(iFiles(1)).Condition;
+        if length(cond_name)>=4 && strcmp(cond_name(1:4), '@raw')
+            cond_name = cond_name(5:end);
+        end
+
+        if strcmp(sInputs(iFiles(1)).FileType, 'raw')
+            newCondition = ['@raw', cond_name, '_Hb'];
+        else
+            newCondition =  [cond_name, '_Hb'];
+        end
+
+        [sSubjStudies, ~] = bst_get('StudyWithSubject', sInputs(iFiles(1)).SubjectFile,'intra_subject', 'default_study');
+        newCondition = file_unique(newCondition, {sSubjStudies.Name}, 1);
+
+        oldStudy = bst_get('Study', sInputs(iFiles(1)).iStudy); 
+        iStudy = db_add_condition(sInputs(iFiles(1)).SubjectName, newCondition, 1, oldStudy.DateOfStudy);
+        sStudy = bst_get('Study', iStudy);
+
+        % Save channel definition
+        [tmp, iChannelStudy] = bst_get('ChannelForStudy', iStudy);
+        db_set_channel(iChannelStudy, ChannelMat, 2, 0);
+
+
+        for iFile = 1:length(iFiles)
+
+            % Load recordings
+            if strcmp(sInputs(iFiles).FileType, 'data')     % Imported data structure
+                sDataIn = in_bst_data(sInputs(iFiles).FileName);
+                events = sDataIn.Events;
+                isRaw  = 0;
+            elseif strcmp(sInputs(iFiles).FileType, 'raw')  % Continuous data file       
+                sDataIn = in_bst(sInputs(iFiles).FileName, [], 1, 0, 'no');
+                sDataRaw = in_bst_data(sInputs(iFiles).FileName, 'F');
+                events = sDataRaw.F.events;
+                isRaw  = 1;
+            end
     
+            % Remove bad channels: they won't enter MBLL computation so no need to keep them 
+            [good_nirs, good_channel_def] = process_nst_mbll('filter_bad_channels',sDataIn.F', ChanneMat, sDataIn.ChannelFlag);
+            
+            % Separate NIRS channels from others (NIRS_AUX etc.)                                                
+            [fnirs, fchannel_def, nirs_other, channel_def_other] = process_nst_mbll('filter_data_by_channel_type',good_nirs, good_channel_def, 'NIRS');
+            
+            % Apply MBLL
+            [nirs_hb, channels_hb] = process_nst_mbll('Compute',fnirs, fchannel_def, age, [], do_plp_corr, pvf, dpf_method); 
+            
+            % Re-add other channels that were not changed during MBLL
+            [final_nirs, ChannelMat] = process_nst_mbll('concatenate_data',nirs_hb, channels_hb, nirs_other, channel_def_other);
+
+            if ~isempty(sDataIn.Std)
+                % Remove bad channels: they won't enter MBLL computation so no need to keep them 
+                [good_nirs, good_channel_def] = process_nst_mbll('filter_bad_channels',sDataIn.Std', ChanneMat, sDataIn.ChannelFlag);
+                
+                % Separate NIRS channels from others (NIRS_AUX etc.)                                                
+                [fnirs, fchannel_def, nirs_other, channel_def_other] = process_nst_mbll('filter_data_by_channel_type',good_nirs, good_channel_def, 'NIRS');
+                
+                % Apply MBLL
+                [nirs_hb, channels_hb] = process_nst_mbll('Compute',fnirs, fchannel_def, age, [], do_plp_corr, pvf, dpf_method); 
+                
+                % Re-add other channels that were not changed during MBLL
+                [final_nirs_std, ~] = process_nst_mbll('concatenate_data',nirs_hb, channels_hb, nirs_other, channel_def_other);
+            
+            end
+        end
+
     end
 
-    % Create new condition because channel definition is different from original one
-    cond_name = sInputs.Condition;
-    if length(cond_name)>=4 && strcmp(cond_name(1:4), '@raw')
-        cond_name = cond_name(5:end);
-    end
 
-    if isRaw
-        newCondition = ['@raw', cond_name, '_Hb'];
-    else
-        newCondition =  [cond_name, '_Hb'];
-    end
-    
-    [sSubjStudies, ~] = bst_get('StudyWithSubject', sInputs.SubjectFile,'intra_subject', 'default_study');
-    newCondition = file_unique(newCondition, {sSubjStudies.Name}, 1);
-
-    oldStudy = bst_get('Study', sInputs(1).iStudy); 
-    iStudy = db_add_condition(sInputs.SubjectName, newCondition, 1, oldStudy.DateOfStudy);
-    sStudy = bst_get('Study', iStudy);
-    
-    % Save channel definition
-    [tmp, iChannelStudy] = bst_get('ChannelForStudy', iStudy);
-    db_set_channel(iChannelStudy, ChannelMat, 2, 0);
 
 
     if ~isRaw        
